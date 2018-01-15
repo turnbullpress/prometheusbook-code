@@ -1,0 +1,10 @@
+groups:
+- name: node_rules
+  rules:
+  - record: instance:node_cpu:avg_rate5m
+    expr: 100 - avg (irate(node_cpu{job="node",mode="idle"}[5m])) by (instance) * 100
+  - record: instance:node_memory_usage:percentage
+    expr: (node_memory_MemTotal - (node_memory_MemFree + node_memory_Cached + node_memory_Buffers)) / node_memory_MemTotal * 100
+  - record: instance:root:node_filesystem_usage:percentage
+    expr: (node_filesystem_size{mountpoint="/"} - node_filesystem_free{mountpoint="/"}) / node_filesystem_size{mountpoint="/"} * 100
+

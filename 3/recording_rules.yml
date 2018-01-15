@@ -1,0 +1,7 @@
+groups:
+- name: recording.rules
+  rules:
+  - record: job:http_requests_total:sum
+    expr: sum(http_requests_total) BY (job)
+    labels:
+      metric_type: aggregation

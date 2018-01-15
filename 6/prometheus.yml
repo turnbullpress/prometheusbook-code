@@ -1,0 +1,39 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - alertmanager:9093
+
+rule_files:
+  - "rules/*_rules.yml"
+  - "rules/*_alerts.yml"
+
+scrape_configs:
+- job_name: 'prometheus'
+  static_configs:
+     - targets: ['localhost:9090']
+
+- job_name: node
+  file_sd_configs:
+    - files:
+      - targets/nodes/*.json
+      refresh_interval: 5m
+
+- job_name: docker
+  file_sd_configs:
+    - files:
+      - targets/docker/*.json
+      refresh_interval: 5m
+  metric_relabel_configs:
+  - source_labels: [id]
+    regex: '/docker/([a-z0-9]+)'
+    replacement: '$1'
+    target_label: container_id
+  - source_labels: [__name__]
+    separator: ','
+    regex: '(container_tasks_state|container_memory_failures_total)'
+    action: drop

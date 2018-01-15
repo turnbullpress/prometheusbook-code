@@ -1,0 +1,81 @@
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.
+#
+apiVersion: kops/v1alpha2
+kind: Cluster
+metadata:
+  creationTimestamp: 2018-01-09T17:03:46Z
+  name: tornado.quicknuke.com
+spec:
+  api:
+    loadBalancer:
+      type: Public
+  authorization:
+    alwaysAllow: {}
+  channel: stable
+  cloudProvider: aws
+  configBase: s3://quicknuke-state-store/tornado.quicknuke.com
+  etcdClusters:
+  - etcdMembers:
+    - instanceGroup: master-us-east-1a
+      name: a
+    - instanceGroup: master-us-east-1b
+      name: b
+    - instanceGroup: master-us-east-1c
+      name: c
+    name: main
+  - etcdMembers:
+    - instanceGroup: master-us-east-1a
+      name: a
+    - instanceGroup: master-us-east-1b
+      name: b
+    - instanceGroup: master-us-east-1c
+      name: c
+    name: events
+  iam:
+    allowContainerRegistry: true
+    legacy: false
+  kubernetesApiAccess:
+  - 0.0.0.0/0
+  kubernetesVersion: 1.8.4
+  masterInternalName: api.internal.tornado.quicknuke.com
+  masterPublicName: api.tornado.quicknuke.com
+  networkCIDR: 172.20.0.0/16
+  networking:
+    kopeio: {}
+  nonMasqueradeCIDR: 100.64.0.0/10
+  sshAccess:
+  - 0.0.0.0/0
+  subnets:
+  - cidr: 172.20.32.0/19
+    name: us-east-1a
+    type: Private
+    zone: us-east-1a
+  - cidr: 172.20.64.0/19
+    name: us-east-1b
+    type: Private
+    zone: us-east-1b
+  - cidr: 172.20.96.0/19
+    name: us-east-1c
+    type: Private
+    zone: us-east-1c
+  - cidr: 172.20.0.0/22
+    name: utility-us-east-1a
+    type: Utility
+    zone: us-east-1a
+  - cidr: 172.20.4.0/22
+    name: utility-us-east-1b
+    type: Utility
+    zone: us-east-1b
+  - cidr: 172.20.8.0/22
+    name: utility-us-east-1c
+    type: Utility
+    zone: us-east-1c
+  topology:
+    bastion:
+      bastionPublicName: bastion.tornado.quicknuke.com
+    dns:
+      type: Public
+    masters: private
+    nodes: private

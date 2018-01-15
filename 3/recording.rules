@@ -1,0 +1,1 @@
+job:http_requests_total:sum{metric_type="aggregation"} = sum(http_requests_total) by (job)
