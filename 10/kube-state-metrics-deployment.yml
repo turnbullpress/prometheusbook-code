@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  namespace: monitoring
+  labels:
+    app: kube-state-metrics
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: kube-state-metrics-main
+      labels:
+        app: kube-state-metrics
+    spec:
+      containers:
+        - name: kube-state-metrics
+          image: quay.io/coreos/kube-state-metrics:latest
+          ports:
+          - containerPort: 8080
+            name: metrics

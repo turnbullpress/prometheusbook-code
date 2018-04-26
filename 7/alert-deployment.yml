@@ -3,8 +3,10 @@ kind: Deployment
 metadata:
   name: alertmanager
   namespace: monitoring
+  labels:
+    app: alertmanager
+    component: core
 spec:
-  replicas: 3
   selector:
     matchLabels:
       app: alertmanager
@@ -13,29 +15,35 @@ spec:
       name: alertmanager
       labels:
         app: alertmanager
+        component: core
     spec:
       containers:
       - name: alertmanager
-        image: quay.io/prometheus/alertmanager:latest
+        image: quay.io/prometheus/alertmanager:v0.14.0
         args:
           - '--config.file=/etc/alertmanager/config.yml'
           - '--storage.path=/alertmanager'
         ports:
-        - name: alertmanager
+        - name: web
           containerPort: 9093
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /api/v1/status
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
         volumeMounts:
         - name: alertmanager-config-volume
           mountPath: /etc/alertmanager/
-        - name: alertmanager-templates-volume
-          mountPath: /etc/alertmanager/templates/
         - name: alertmanager-data-volume
           mountPath: /alertmanager/
       volumes:
       - name: alertmanager-config-volume
         configMap:
           name: alertmanager-server-conf
-      - name: alertmanager-templates-volume
-        configMap:
-          name: alertmanager-templates-conf
       - name: alertmanager-data-volume
         emptyDir: {}

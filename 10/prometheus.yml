@@ -1,0 +1,68 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+  - static_configs:
+    - targets:
+      - am1:9093
+      - am2:9093
+      - am3:9093
+
+rule_files:
+  - "rules/*_rules.yml"
+  - "rules/*_alerts.yml"
+
+scrape_configs:
+- job_name: 'prometheus'
+  static_configs:
+    - targets: ['localhost:9090']
+
+- job_name: 'http_probe'
+  metrics_path: /probe
+  params:
+    module: [http_2xx_check]
+  file_sd_configs:
+    - files:
+      - 'targets/probes/http_probes.json'
+      refresh_interval: 5m
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: prober:9115
+
+- job_name: 'icmp_probe'
+  metrics_path: /probe
+  params:
+    module: [icmp_check]
+  file_sd_configs:
+    - files:
+      - 'targets/probes/icmp_probes.json'
+      refresh_interval: 5m
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: prober:9115
+
+- job_name: 'dns_probe'
+  metrics_path: /probe
+  params:
+    module: [dns_examplecom_check]
+  file_sd_configs:
+    - files:
+      - 'targets/probes/dns_probes.json'
+      refresh_interval: 5m
+  relabel_configs:
+    - source_labels: [__address__]
+      target_label: __param_target
+    - source_labels: [__param_target]
+      target_label: instance
+    - target_label: __address__
+      replacement: prober:9115

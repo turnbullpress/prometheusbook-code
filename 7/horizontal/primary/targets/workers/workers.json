@@ -1,0 +1,7 @@
+[{
+    "targets": [
+      "worker0:9090",
+      "worker1:9090",
+      "worker2:9090"
+    ]
+}]

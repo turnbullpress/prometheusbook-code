@@ -1,0 +1,23 @@
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: []
+      method: GET
+  icmp_check:
+    prober: icmp
+    timeout: 5s
+    icmp:
+      preferred_ip_protocol: "ip4"
+  dns_examplecom_check:
+    prober: dns
+    dns:
+      preferred_ip_protocol: "ip4"
+      query_name: "www.example.com"
+  dns_tcp_example:
+    prober: dns
+    dns:
+      transport_protocol: "tcp" # defaults to "udp"
+      preferred_ip_protocol: "ip4" #  defaults to "ip6"
+      query_name: "www.prometheus.io"

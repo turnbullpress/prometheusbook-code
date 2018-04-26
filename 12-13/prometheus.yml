@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: core
+  annotations:
+    prometheus.io/scrape: 'true'
+    external-dns.alpha.kubernetes.io/hostname: prometheus.quicknuke.com.
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 9090
+      targetPort: webui
+      name: webui
+  selector:
+    app: prometheus
+    component: core
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: prometheus-core
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: core
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: prometheus-main
+      labels:
+        app: prometheus
+        component: core
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.1.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+              name: webui
+          volumeMounts:
+            - name: prometheus-config-volume
+              mountPath: /etc/prometheus
+            - name: prometheus-rules-volume
+              mountPath: /var/prometheus/rules
+            - name: prometheus-storage-volume
+              mountPath: /prometheus/
+        - name: watch
+          image: weaveworks/watch:master-5b2a6e5
+          imagePullPolicy: IfNotPresent
+          args: ["-v", "-t", "-p=/etc/prometheus", "-p=/var/prometheus", "curl", "-X", "POST", "--fail", "-o", "-", "-sS", "http://localhost:9090/-/reload"]
+          volumeMounts:
+            - name: prometheus-config-volume
+              mountPath: /etc/prometheus
+            - name: prometheus-rules-volume
+              mountPath: /var/prometheus/rules
+      volumes:
+        - name: prometheus-config-volume
+          configMap:
+            defaultMode: 420
+            name: prometheus-server-conf
+        - name: prometheus-rules-volume
+          configMap:
+            name: prometheus-rules-conf
+        - name: prometheus-storage-volume
+          emptyDir: {}

@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-webui
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: core
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9093"
+    external-dns.alpha.kubernetes.io/hostname: alertmanager.quicknuke.com.
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 9093
+      name: metrics
+  selector:
+    app: alertmanager
+    component: core
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: core
+spec:
+  ports:
+  - port: 9093
+    name: cluster
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: alertmanager
+    component: core
+---
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: core
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  replicas: 3
+  selector:
+    matchLabels:
+      app: alertmanager
+      component: core
+  serviceName: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+        component: core
+    spec:
+      containers:
+      - name: alertmanager
+        image: quay.io/prometheus/alertmanager:master
+        imagePullPolicy: IfNotPresent
+        command:
+        - "sh"
+        - "-c"
+        args:
+        - /bin/alertmanager
+            --config.file=/etc/alertmanager/config.yml
+            --web.listen-address=0.0.0.0:9093
+            --cluster.listen-address=0.0.0.0:8001
+            --storage.path=/alertmanager
+            --cluster.peer="alertmanager-0.alertmanager.monitoring.svc:8001"
+            --cluster.peer="alertmanager-1.alertmanager.monitoring.svc:8001"
+            --cluster.peer="alertmanager-2.alertmanager.monitoring.svc:8001"
+            --log.level=debug
+        ports:
+        - containerPort: 9093
+          name: web
+          protocol: TCP
+        - containerPort: 8001
+          name: cluster
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /api/v1/status
+            port: web
+            scheme: HTTP
+          failureThreshold: 10
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /api/v1/status
+            port: web
+            scheme: HTTP
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 3
+        volumeMounts:
+        - name: alertmanager-config-volume
+          mountPath: /etc/alertmanager/
+        - name: alertmanager-data-volume
+          mountPath: /alertmanager/
+      volumes:
+      - name: alertmanager-config-volume
+        configMap:
+          name: alertmanager-server-conf
+      - name: alertmanager-data-volume
+        emptyDir: {}

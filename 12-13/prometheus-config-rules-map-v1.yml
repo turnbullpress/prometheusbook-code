@@ -1,0 +1,291 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: prometheus-rules-conf
+  namespace: monitoring
+data:
+  kubernetes_alerts.yml: |
+    groups:
+      - name: kubernetes_alerts
+        rules:
+        - alert: DeploymentGenerationOff
+          expr: kube_deployment_status_observed_generation != kube_deployment_metadata_generation
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: Deployment generation does not match expected generation {{ $labels.namespace }}/{{ $labels.deployment }}
+            summary: Deployment is outdated
+        - alert: DeploymentReplicasNotUpdated
+          expr: ((kube_deployment_status_replicas_updated != kube_deployment_spec_replicas)
+            or (kube_deployment_status_replicas_available != kube_deployment_spec_replicas))
+            unless (kube_deployment_spec_paused == 1)
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            description: Replicas are not updated and available for deployment {{ $labels.namespace }}/{{ $labels.deployment }}
+            summary: Deployment replicas are outdated
+        - alert: PodzFrequentlyRestarting
+          expr: increase(kube_pod_container_status_restarts_total[1h]) > 5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            description: Pod {{ $labels.namespace }}/{{ $labels.pod }} was restarted {{ $value }} times within the last hour
+            summary: Pod is restarting frequently
+        - alert: KubeNodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            description: The Kubelet on {{ $labels.node }} has not checked in with the API,
+              or has set itself to NotReady, for more than an hour
+            summary: Node status is NotReady
+        - alert: KubeManyNodezNotReady
+          expr: count(kube_node_status_condition{condition="Ready",status="true"} == 0)
+            > 1 and (count(kube_node_status_condition{condition="Ready",status="true"} ==
+            0) / count(kube_node_status_condition{condition="Ready",status="true"})) > 0.2
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            description: '{{ $value }}% of Kubernetes nodes are not ready'
+        - alert: APIHighLatency
+          expr: apiserver_latency_seconds:quantile{quantile="0.99",subresource!="log",verb!~"^(?:WATCH|WATCHLIST|PROXY|CONNECT)$"} > 4
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            description: the API server has a 99th percentile latency of {{ $value }} seconds for {{ $labels.verb }} {{ $labels.resource }}
+        - alert: APIServerErrorsHigh
+          expr: rate(apiserver_request_count{code=~"^(?:5..)$"}[5m]) / rate(apiserver_request_count[5m]) * 100 > 5
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            description: API server returns errors for {{ $value }}% of requests
+        - alert: KubernetesAPIServerDown
+          expr: up{job="kubernetes-apiservers"} == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Apiserver {{ $labels.instance }} is down!
+        - alert: KubernetesAPIServersGone
+          expr:  absent(up{job="kubernetes-apiservers"})
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: No Kubernetes apiservers are reporting!
+            description: Werner Heisenberg says - OMG Where are my apiserverz?
+  kubernetes_rules.yml: |
+    groups:
+      - name: kubernetes_rules
+        rules:
+        - record: apiserver_latency_seconds:quantile
+          expr: histogram_quantile(0.99, rate(apiserver_request_latencies_bucket[5m])) / 1e+06
+          labels:
+            quantile: "0.99"
+        - record: apiserver_latency_seconds:quantile
+          expr: histogram_quantile(0.9, rate(apiserver_request_latencies_bucket[5m])) / 1e+06
+          labels:
+            quantile: "0.9"
+        - record: apiserver_latency_seconds:quantile
+          expr: histogram_quantile(0.5, rate(apiserver_request_latencies_bucket[5m])) / 1e+06
+          labels:
+            quantile: "0.5"
+  prometheus_alerts.yml: |
+    groups:
+    - name: prometheus_alerts
+      rules:
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: Reloading Prometheus configuration has failed on {{$labels.instance}}.
+      - alert: PrometheusNotConnectedToAlertmanagers
+        expr: prometheus_notifications_alertmanagers_discovered < 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          description: Prometheus {{ $labels.instance}} is not connected to any Alertmanagers
+  node_alerts.yml: |
+    groups:
+    - name: node_alerts
+      rules:
+      - alert: HighNodeCPU
+        expr: instance:node_cpu:avg_rate5m > 80
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: High Node CPU of {{ humanize $value}}% for 1 hour
+      - alert: DiskWillFillIn4Hours
+        expr: predict_linear(node_filesystem_free{mountpoint="/"}[1h], 4*3600) < 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Disk on {{ $labels.instance }} will fill in approximately 4 hours.
+      - alert: KubernetesServiceDown
+        expr: up{job="kubernetes-service-endpoints"} == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Pod {{ $labels.instance }} is down!
+      - alert: KubernetesServicesGone
+        expr:  absent(up{job="kubernetes-service-endpoints"})
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: No Kubernetes services are reporting!
+          description: Werner Heisenberg says - OMG Where are my servicez?
+      - alert: CriticalServiceDown
+        expr: node_systemd_unit_state{state="active"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Service {{ $labels.name }} failed to start.
+          description: Service {{ $labels.instance }} failed to (re)start service {{ $labels.name }}.
+  node_rules.yml: |
+    groups:
+    - name: node_rules
+      rules:
+      - record: instance:node_cpu:avg_rate5m
+        expr: 100 - avg (irate(node_cpu{mode="idle"}[5m])) by (instance) * 100
+      - record: instance:node_memory_usage:percentage
+        expr: (node_memory_MemTotal - (node_memory_MemFree + node_memory_Cached + node_memory_Buffers)) / node_memory_MemTotal * 100
+      - record: instance:root:node_filesystem_usage:percentage
+        expr: (node_filesystem_size{mountpoint="/"} - node_filesystem_free{mountpoint="/"}) / node_filesystem_size{mountpoint="/"}* 100
+  mysql_rules.yml: |
+    groups:
+    - name: mysql_rules
+      rules:
+      - record: mysql:write_requests:rate2m
+        expr: sum(rate(mysql_global_status_commands_total{command=~"insert|update|delete"}[2m])) without (command)
+      - record: mysql:select_requests:rate2m
+        expr: sum(rate(mysql_global_status_commands_total{command="select"}[2m]))
+      - record: mysql:total_requests:rate2m
+        expr: rate(mysql_global_status_commands_total[2m])  
+  mysql_alerts.yml: |
+    groups:
+    - name: mysql_alerts
+      rules:
+      - alert: MySQLAbortedConnectionsHigh
+        expr: rate(mysql_global_status_aborted_connects[2m]) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: MySQL Aborted connection rate is exceeded on {{ $labels.instance }} for {{ $labels.kubernetes_name }}      
+      - alert: MySQLHighSlowQuerysHigh
+        expr: rate(mysql_global_status_slow_queries[2m]) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: MySQL Slow query rate is exceeded on {{ $labels.instance }} for {{ $labels.kubernetes_name }}      
+      - alert: MySQLInnoDBLogWaits
+        expr: rate(mysql_global_status_innodb_log_waits[15m]) > 10
+        labels:
+          severity: warning
+        annotations:
+          description: The innodb logs are waiting for disk at a rate of {{$value}} / second
+          summary: MySQL innodb log writes stalling
+      - alert: TornadoDBServerDown
+        expr: mysql_up{kubernetes_name="tornado-db"} == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: MySQL Server {{ $labels.instance }} is down!
+      - alert: TornadoDBServerGone
+        expr:  absent(mysql_up{kubernetes_name="tornado-db"})
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: No Tornado DB servers are reporting!
+          description: Werner Heisenberg says - there is no uncertainty about the Tornado MySQL server being gone.
+  redis_alerts.yml: |
+    groups:
+    - name: redis_alerts
+      rules:
+      - alert: TornadoRedisCacheMissesHigh
+        expr: redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) > 0.8
+        for: 10m 
+        labels:
+          severity: warning
+        annotations:
+          summary: Redis Server {{ $labels.instance }} Cache Misses are high.
+      - alert: RedisRejectedConnectionsHigh
+        expr: avg(redis_rejected_connections_total) by (addr) < 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis instance {{ $labels.addr }} may be hitting maxclient limit."
+          description: "The Redis instance at {{ $labels.addr }} had {{ $value }} rejected connections during the last 10m and may be hitting the maxclient limit."
+      - alert: TornadoRedisServerDown
+        expr: redis_up{kubernetes_name="tornado-redis"} == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis Server {{ $labels.instance }} is down!
+      - alert: TornadoRedisServerGone
+        expr:  absent(redis_up{kubernetes_name="tornado-redis"})
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: No Tornado Redis servers are reporting!
+          description: Werner Heisenberg says - there is no uncertainty about the Tornado Redis server being gone.
+  redis_rules.yml: |
+    groups:
+    - name: redis_rules
+      rules:
+      - record: redis:command_call_duration_seconds_count:rate2m
+        expr: sum(irate(redis_command_call_duration_seconds_count[2m])) by (cmd, environment)
+      - record: redis:total_requests:rate2m
+        expr: rate(redis_commands_processed_total[2m])  
+  tornado_alerts.yml: |
+    groups:
+    - name: tornado_alerts
+      rules:
+      - alert: TornadoRequestLatencyHigh
+        expr: histogram_quantile(0.9, rate(http_request_latency_seconds_bucket{kubernetes_name="tornado-api"}[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: API Server {{ $labels.instance }} latency is over 0.05.
+      - alert: TornadoAPIServerDown
+        expr: tornado_up{kubernetes_name="tornado-api"} != 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: API Server {{ $labels.instance }} is down!
+      - alert: TornadoAPIServerGone
+        expr:  absent(tornado_up{kubernetes_name="tornado-api"})
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: No Tornado API servers are reporting!
+          description: Werner Heisenberg says - there is no uncertainty about the Tornado API server being gone.
+  tornado_rules.yml: |
+    groups:
+    - name: tornado_rules
+      rules:
+      - record: tornado:request_latency_seconds:avg
+        expr: http_request_latency_seconds_sum{status="200"} / http_request_latency_seconds_count{status="200"}

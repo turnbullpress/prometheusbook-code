@@ -1,0 +1,7 @@
+[{
+    "targets": [
+      "http://www.example.com",
+      "https://www.example.com",
+      ""
+    ]
+}]

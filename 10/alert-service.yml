@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager-webui
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: core
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9093"
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 9093
+      name: metrics
+  selector:
+    app: alertmanager
+    component: core
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+    component: core
+spec:
+  ports:
+  - port: 9093
+    name: cluster
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: alertmanager
+    component: core

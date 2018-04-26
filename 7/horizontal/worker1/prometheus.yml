@@ -1,0 +1,28 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    worker: 1
+
+rule_files:
+  - "rules/node_rules.yml"
+
+scrape_configs:
+- job_name: 'prometheus'
+  static_configs:
+    - targets: ['localhost:9090']
+
+- job_name: 'node'
+  file_sd_configs:
+    - files:
+      - 'targets/nodes/*.json'
+      refresh_interval: 5m
+  relabel_configs:
+  - source_labels: [__address__]
+    modulus:       3
+    target_label:  __tmp_hash
+    action:        hashmod
+  - source_labels: [__tmp_hash]
+    regex:         ^1$
+    action:        keep
+

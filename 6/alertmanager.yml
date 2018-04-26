@@ -21,7 +21,7 @@ route:
           service: application1
         receiver: support_team
   - match_re:
-      severity: ^(medium|high)$
+      severity: ^(informational|warning)$
     receiver: support_team
 receivers:
 - name: 'email'

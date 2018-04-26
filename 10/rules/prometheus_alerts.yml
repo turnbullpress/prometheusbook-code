@@ -1,0 +1,17 @@
+groups:
+- name: prometheus_alerts
+  rules:
+  - alert: PrometheusConfigReloadFailed
+    expr: prometheus_config_last_reload_successful == 0
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      description: Reloading Prometheus' configuration has failed on {{ $labels.instance }}.
+  - alert: PrometheusNotConnectedToAlertmanagers
+    expr: prometheus_notifications_alertmanagers_discovered < 1
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      description: Prometheus {{ $labels.instance }} is not connected to any Alertmanagers
