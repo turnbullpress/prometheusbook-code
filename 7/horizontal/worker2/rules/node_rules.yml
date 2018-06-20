@@ -2,17 +2,17 @@ groups:
 - name: node_rules
   rules:
   - record: instance:node_cpu:avg_rate5m
-    expr: 100 - avg (irate(node_cpu{job="node",mode="idle"}[5m])) by (instance) * 100
+    expr: 100 - avg (irate(node_cpu_seconds_total{job="node",mode="idle"}[5m])) by (instance) * 100
   - record: instance:node_cpus:count
-    expr: count by (instance)(node_cpu{mode="idle"})
+    expr: count by (instance)(node_cpu_seconds_total{mode="idle"})
   - record: instance:node_cpu_saturation_load1
-    expr: node_load1 > on (instance) 2 * count by (instance)(node_cpu{mode="idle"})
+    expr: node_load1 > on (instance) 2 * count by (instance)(node_cpu_seconds_total{mode="idle"})
   - record: instance:node_memory_usage:percentage
-    expr: (node_memory_MemTotal - (node_memory_MemFree + node_memory_Cached + node_memory_Buffers)) / node_memory_MemTotal * 100
+    expr: (node_memory_MemTotal_bytes - (node_memory_MemFree + node_memory_Cached_bytes + node_memory_Buffers_bytes)) / node_memory_MemTotal_bytes * 100
   - record: instance:node_memory_swap_io_bytes:sum_rate
     expr: 1024 * sum by (instance) (
                  (rate(node_vmstat_pgpgin[1m])
                  + rate(node_vmstat_pgpgout[1m]))
           )
   - record: instance:root:node_filesystem_usage:percentage
-    expr: (node_filesystem_size{mountpoint="/"} - node_filesystem_free{mountpoint="/"}) / node_filesystem_size{mountpoint="/"} * 100
+    expr: (node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_free_bytes{mountpoint="/"}) / node_filesystem_size_bytes{mountpoint="/"} * 100
