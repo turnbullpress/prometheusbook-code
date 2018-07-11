@@ -35,17 +35,17 @@ data:
     receivers:
     - name: 'email'
       email_configs:
-      - to: 'james+alerts@lovedthanlost.net'
+      - to: 'alerts@example.com'
       slack_configs:
-      - api_url: https://hooks.slack.com/services/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
+      - api_url: https://hooks.slack.com/services/ABC1234
     - name: 'support_team'
       email_configs:
-      - to: 'james+support@lovedthanlost.net'
+      - to: 'alerts+support@example.com'
       slack_configs:
-      - api_url: https://hooks.slack.com/services/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
+      - api_url: https://hooks.slack.com/services/ABC123
         text: '{{ .CommonAnnotations.summary }}'
     - name: 'pager'
       email_configs:
-      - to: 'james+pd@lovedthanlost.net'
+      - to: 'alerts+pd@example.com'
       slack_configs:
-      - api_url: https://hooks.slack.com/services/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
+      - api_url: https://hooks.slack.com/services/ABC123
